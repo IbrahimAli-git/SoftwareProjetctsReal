@@ -3,28 +3,33 @@ package model;
 import model.Model;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
-public class MainModel implements Model {
+public class MainModel implements Model, Closeable {
+
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/softwareprojectdatabase";
+    private static final String USER_NAME = "root";
+    private static final String PASSWORD = "WR*=ACHoXo0$c$j+wrlt";
+    private static final Connection con = null;
+    private Statement st;
+    private ResultSet rs;
+
+
+    private static Connection getCon() throws SQLException {
+        return DriverManager.getConnection(DB_URL, USER_NAME, PASSWORD);
+    }
 
     @Override
-    public void create(Connection con, int overallPerformance) throws SQLException {
-        Statement st = con.createStatement();
-        st.executeUpdate("INSERT INTO tbl1_software_projects(student_overall_performance) VALUES(" + overallPerformance + ")");
+    public void create(int overallPerformance) throws SQLException {
+        st = getCon().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,ResultSet.CONCUR_READ_ONLY);
+        st.executeUpdate("INSERT INTO software_projects_overall_performance(student_overall_performance) VALUES(" + overallPerformance + ")");
 
-        ResultSet rs = st.executeQuery("SELECT * FROM tbl1_software_projects WHERE student_overall_performance = " + overallPerformance);
-
-        while (rs.next()) {
-            int studentId = rs.getInt(1);
-
-            System.out.println("The student's id is" + studentId);
-
-        }
-        st.close();
+        ResultSet rs = st.executeQuery("SELECT * FROM software_projects_overall_performance WHERE student_overall_performance = " + overallPerformance);
+        rs.last();
+        int studentId = rs.getInt(1);
+        System.out.println("The student's id is " + studentId);
     }
 
     @Override
@@ -41,25 +46,22 @@ public class MainModel implements Model {
         examMarks = Integer.parseInt(bufferedReader.readLine());
         System.out.println();
 
-        if (attendance > 80 && courseWorkMarks > 80 && examMarks > 80) {
-            System.out.println("The academic performance of student is excellent");
-
-        }
-        int overallPerformance = (attendance + courseWorkMarks + examMarks) / 3;
+        int overallPerformance = (int) ((int)(attendance * 0.2) + (courseWorkMarks * 0.4)+ (examMarks * 0.4));
+        System.out.println("The student's overall performance is " + overallPerformance);
         return overallPerformance;
     }
 
     @Override
-    public void retrieve(Connection connection, int id) throws SQLException {
-        Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery("SELECT * FROM tbl1_software_projects WHERE student_id = " + id);
+    public void retrieve(int id) throws SQLException {
+        st = getCon().createStatement();
+        rs = st.executeQuery("SELECT * FROM software_projects_overall_performance WHERE student_id = " + id);
 
-        while (resultSet.next()) {
-            System.out.println("The student's overall performance is " + resultSet.getInt("student_overall_performance"));
+        while (rs.next()) {
+            System.out.println("The student's overall performance is " + rs.getInt("student_overall_performance"));
         }
     }
     @Override
-    public void update(Connection connection, BufferedReader br) throws SQLException, IOException {
+    public void update( BufferedReader br) throws SQLException, IOException {
         System.out.println("Please enter student's id:");
         System.out.println();
         int studentId = Integer.parseInt(br.readLine());
@@ -68,22 +70,30 @@ public class MainModel implements Model {
         System.out.println();
         int overallPerformance = Integer.parseInt(br.readLine());
 
-        Statement st = connection.createStatement();
-        st.executeUpdate("UPDATE tbl1_software_projects SET student_overall_performance = " + overallPerformance + " WHERE student_id = " + studentId);
-        st.close();
+        st = getCon().createStatement();
+        st.executeUpdate("UPDATE software_projects_overall_performance SET student_overall_performance = " + overallPerformance + " WHERE student_id = " + studentId);
         System.out.println("Student's record has updated successfully");
     }
 
     @Override
-    public void delete(Connection connection, BufferedReader br) throws SQLException, IOException {
+    public void delete(BufferedReader br) throws SQLException, IOException {
         System.out.println("Please enter student's id:");
         System.out.println();
+
         int studentId = Integer.parseInt(br.readLine());
 
-
-        Statement st = connection.createStatement();
-        st.execute("DELETE FROM tbl1_software_projects WHERE student_id = " + studentId);
-        st.close();
+        st = getCon().createStatement();
+        st.execute("DELETE FROM software_projects_overall_performance WHERE student_id = " + studentId);
         System.out.println("Student's record has deleted successfully");
+    }
+
+    @Override
+    public void close() throws IOException {
+        try {
+            getCon().close();
+            st.close();
+            rs.close();
+        } catch (SQLException e) {
+        }
     }
 }
